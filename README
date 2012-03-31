@@ -1,0 +1,100 @@
+minecraft-init-script by superjamie <jamie@superjamie.net>
+
+This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedora.
+
+## Features ##
+
+* Start, stop, restart CraftBukkit as a system service
+* Automatic (via cron) and manual logfile rotation
+* Automatic (via cron) and manual backups
+* Backup compression and rotation (keeps 7 days worth of backups)
+* Check latest Recommended Build and update to it if required
+* Information display including Java path, current memory usage, current TCP connections
+
+## Features I'm considering adding ##
+
+* Simplified backup restoration
+* Log security alerts emailed to admins via sendmail/postfix
+
+## Requirements ##
+
+* CentOS 6 (probably works on Centos 5 and Fedora 12+ too, maybe even Debian/Ubuntu/Mint?)
+* screen, rsync
+  (you'll need to install this)
+* bash, chkconfig, coreutils, cronie, curl, diffutils, initscripts, net-tools, procps, tar
+  (these should all be installed by default)
+* Sun Java
+* Enough disk space to save your map twice, plus another ~5 times for a week of compressed backup space. If your map is 1Gb then you probably need at least 7Gb, plus any space your plugins require and any additional backups you'll be making.
+
+## Installation ##
+
+As the root user:
+
+* Install Sun Java and configure it as an alternative with something like
+  alternatives --install /usr/bin/java java /usr/java/jre1.6.0_31/bin/java 16001
+* If you have other JVMs installed, choose Sun Java with
+  alternatives --config java
+* Confirm your JVM selection with
+  java -version
+* Create a user with a home directory
+  useradd -m bukkit
+* Save the script as /etc/init.d/minecraft and make it executable
+  chmod +x /etc/init.d/minecraft
+* Allow the bukkit user to run the init script without needing root access
+  Type `visudo` and add this line to the bottom
+  bukkit localhost=NOPASSWD:/etc/init.d/minecraft*
+* Create an alias so you only have to type "minecraft" or "mc" to run the script
+  Add the following lines to both root and bukkit's ~/.bashrc file
+  alias minecraft='/etc/init.d/minecraft'
+  alias mc='minecraft'
+* Add the service to chkconfig
+  chkconfig --add minecraft
+* Set the server to start on system start if desired
+  chkconfig minecraft on
+
+As the regular user, bukkit:
+
+* Make the required paths
+  mkdir -p ~/backups && mkdir -p ~/craftbukkit
+* Put your craftbukkit.jar, world, plugins, server.properties, etc into ~/craftbukkit
+* Create cron jobs to do regular backups and rotations around 4am
+  Type `crontab -e` to open the cron interface and add the following
+  0 4 * * * /etc/init.d/minecraft backup
+  5 4 * * * /etc/init.d/minecraft logrotate
+  15 4 * * * /etc/init.d/minecraft removeoldbackups
+
+## Usage
+
+* Start the server
+  minecraft start
+* Stop the server
+  minecraft stop
+* Restart the server
+  minecraft restart
+* Back up the map and executable (the compressed backup is done when the .md5 file appears in the backup directory)
+  minecraft backup
+* Check the server is running with
+  minecraft status
+* Get some more info with
+  minecraft info
+
+  * CraftBukkit (pid 9037) is running...
+  - Java Path : /usr/java/jre1.6.0_31/bin/java
+  - Start Command : java -Xms512M -Xmx3584M -jar craftbukkit.jar nogui
+  - Server Path : /home/bukkit/craftbukkit
+  - World Name : world
+  - Process ID : 9037
+  - Memory Usage : 742796 kb
+  - Active Connections :
+  Proto Recv-Q Send-Q Local Address Foreign Address State
+  tcp 0 0 0.0.0.0:25565 0.0.0.0:* LISTEN
+  tcp 0 0 192.168.2.99:25565 192.168.2.69:55507 ESTABLISHED
+
+## Credits
+
+Thanks to these people whose work I have used in the making of this
+
+* http://forums.bukkit.org/threads/tutorial-centos-bukkit-installation.56371/
+* http://www.minecraftwiki.net/wiki/M3tal_Warrior_Server_Startup_Script
+* http://forums.bukkit.org/threads/admin-linux-init-script-for-bukkit.53235/
+
