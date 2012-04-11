@@ -1,4 +1,4 @@
-minecraft-init-script by superjamie <jamie@superjamie.net>
+minecraft-init-script by Super Jamie <jamie@superjamie.net>
 
 This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedora.
 
@@ -18,7 +18,7 @@ This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedo
 
 ## Requirements ##
 
-* CentOS 6 (probably works on Centos 5 and Fedora 12+ too, maybe even Debian/Ubuntu/Mint?)
+* CentOS 6, CentOS 5 (probably works on Fedora 12, 13, 14 too, maybe even Debian/Ubuntu/Mint?)
 * screen, rsync
   (you'll need to install this)
 * bash, chkconfig, coreutils, cronie, curl, diffutils, initscripts, net-tools, procps, tar
@@ -63,7 +63,7 @@ As the regular user, bukkit:
   5 4 * * * /etc/init.d/minecraft logrotate
   15 4 * * * /etc/init.d/minecraft removeoldbackups
 
-## Usage
+## Usage ##
 
 * Start the server
   minecraft start
@@ -90,7 +90,22 @@ As the regular user, bukkit:
   tcp 0 0 0.0.0.0:25565 0.0.0.0:* LISTEN
   tcp 0 0 192.168.2.99:25565 192.168.2.69:55507 ESTABLISHED
 
-## Credits
+## License ##
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+## Credits ##
 
 Thanks to these people whose work I have used in the making of this
 
