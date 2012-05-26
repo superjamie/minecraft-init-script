@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-04-11 (YYYY-MM-DD)
+# version 2012-05-26 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -347,7 +347,8 @@ case "$1" in
   update)
  mc_updatecheck
  mc_stop
- mc_backup
+ mc_backupmap
+ mc_backupexe
  mc_updatedo
  mc_start
  ;;
