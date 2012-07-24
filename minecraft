@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-05-26 (YYYY-MM-DD)
+# version 2012-07-24 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -50,22 +50,23 @@ CPU_COUNT=2
 BACKUPPATH="/home/bukkit/backups"
 # Find the world name from the existing server file
 WORLDNAME=`cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//`
-
+# Name of Screen session
+SCRNAME="bukkit"
 
 ## The Java command to run the server
 
-# Nothing special, just start the server.
-# INVOCATION="java -Xms3072M -Xmx3072M -Djava.net.preferIPv4Stack=true -jar $SERVICE nogui"
+# Nothing special, just start the server with 1Gb RAM
+# INVOCATION="java -Xms1024M -Xmx1024M -Djava.net.preferIPv4Stack=true -jar $SERVICE nogui"
 
-# Tested fastest. Default parallel new gen collector, plus parallel old gen collector.
-INVOCATION="java -Xms3072M -Xmx3072M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=2 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+UseLargePages -jar $SERVICE nogui"
+# This is what I run my server with. Tune your RAM usage accordingly
+# Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
+INVOCATION="java -Xms2432M -Xmx2432M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+UseLargePages -jar $SERVICE nogui"
 
-# removed "performance" commands
+# I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+AggressiveOpts -XX:+UseAdaptiveGCBoundary
 
-# add HugePage support if you have it configured on the OS
+# Add HugePage support if you have it configured on the OS
 # -XX:+UseLargePages
-
 
 ## Runs all commands as the non-root user
 
@@ -90,7 +91,7 @@ mc_start() {
     echo " * $SERVERNAME was not already running. Starting..."
     echo " * Using map named \"$WORLDNAME\"..."
     cd $MCPATH
-    as_user "cd $MCPATH && screen -dmS minecraft $INVOCATION"
+    as_user "cd $MCPATH && screen -c /dev/null -dmS $SCRNAME $INVOCATION"
     sleep 10
     echo " * Checking $SERVERNAME is running..."
 
@@ -114,12 +115,12 @@ mc_stop() {
     PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     echo " * $SERVERNAME is running (pid $PID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
     echo " * Saving map named \"$WORLDNAME\" to disk..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-all\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-all\"\015'"
     sleep 10
     echo " * Stopping $SERVERNAME..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"stop\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
     sleep 10
   else
     failure && echo " * $SERVERNAME was not running!"
@@ -143,11 +144,11 @@ mc_saveoff() {
   then
     echo " * $SERVERNAME is running. Commencing save..."
     echo " * Notifying users of save..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER BACKUP STARTING. Server going read-only...\"\015'"
+    as_user "screen -p 0 -S $SCRNAME  -X eval 'stuff \"say SERVER BACKUP STARTING. Server going read-only...\"\015'"
     echo " * Setting server read-only..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-off\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-off\"\015'"
     echo " * Saving map named \"$WORLDNAME\" to disk..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-all\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-all\"\015'"
     sync
     sleep 10
     success && echo " * Map saved."
@@ -163,8 +164,8 @@ mc_saveon() {
   if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
   then
     echo " * $SERVERNAME is running. Re-enabling saves..."
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-on\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-on\"\015'"
   else
     failure && echo " * $SERVERNAME was not running. Not resuming saves."
     exit 1;
@@ -322,6 +323,7 @@ mc_info() {
     echo " - Server Path        : "$MCPATH""
     echo " - World Name         : "$WORLDNAME""
     echo " - Process ID         : "$PID""
+    echo " - Screen Session     : "$SCRNAME""
     echo " - Memory Usage       : `expr $RSS / 1024` Mb ($RSS kb)"
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|25565"
@@ -330,6 +332,18 @@ mc_info() {
   fi
 }
  
+## Connect to the active Screen session, disconnect with Ctrl+a then d
+
+mc_console() {
+  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  then
+    as_user "screen -S $SCRNAME -dr"
+  else
+    failure && echo " * $SERVERNAME was not running!"
+    exit 1;
+  fi
+}
+
 ## These are the parameters passed to the script
 
 case "$1" in
@@ -365,6 +379,9 @@ case "$1" in
  mc_status
  mc_info
  ;;
+  console)
+ mc_console
+ ;;
 # These are intended for cron usage, not regular users.
   removeoldbackups)
  mc_removeoldbackups
@@ -378,7 +395,7 @@ case "$1" in
  mc_backupexe
  ;;
   *)
- echo " * Usage: minecraft {start|stop|restart|backup|update|status|info}"
+ echo " * Usage: minecraft {start|stop|restart|backup|update|status|info|console}"
  exit 1;
  ;;
 esac
