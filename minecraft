@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-07-24 (YYYY-MM-DD)
+# version 2012-08-08 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -60,7 +60,7 @@ SCRNAME="bukkit"
 
 # This is what I run my server with. Tune your RAM usage accordingly
 # Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
-INVOCATION="java -Xms2432M -Xmx2432M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -jar $SERVICE nogui"
+INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+UseLargePages -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+AggressiveOpts -XX:+UseAdaptiveGCBoundary
@@ -71,22 +71,37 @@ INVOCATION="java -Xms2432M -Xmx2432M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 ## Runs all commands as the non-root user
 
 as_user() {
-  ME=`whoami`
-  if [ $ME == $USERNAME ] ; then
+  ME=$(whoami)
+  if [ $ME == $USERNAME ]
+  then
     bash -c "$1"
   else
     su - $USERNAME -c "$1"
   fi
 }
 
+## Check if the server is running or not, and get PID if it is
+
+check_running() {
+  if [ $(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | wc -l) -gt 0 ]
+  then
+    PID=0
+    PID="$(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | awk '{print $1}')"
+    return 0
+  else
+    return 1
+  fi
+}
+
+
 ## Start the server executable as a service
 
 mc_start() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     failure && echo " * $SERVERNAME was already running! (pid $PID)"
-    exit 1;
+    exit 1
   else
     echo " * $SERVERNAME was not already running. Starting..."
     echo " * Using map named \"$WORLDNAME\"..."
@@ -95,13 +110,13 @@ mc_start() {
     sleep 10
     echo " * Checking $SERVERNAME is running..."
 
-    if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+    check_running
+    if [ $? -eq 0 ]
     then
-      PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
       success && echo " * $SERVERNAME is now running. (pid $PID)"
     else
       failure && echo " * Could not start $SERVERNAME."
-      exit 1;	
+      exit 1
     fi
 
   fi
@@ -110,9 +125,9 @@ mc_start() {
 ## Stop the executable
 
 mc_stop() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     echo " * $SERVERNAME is running (pid $PID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
@@ -124,23 +139,24 @@ mc_stop() {
     sleep 10
   else
     failure && echo " * $SERVERNAME was not running!"
-    exit 1;
+    exit 1
   fi
 
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
     failure && echo " * $SERVERNAME could not be shutdown! Still running..."
-    exit 1;
+    exit 1
   else
     success && echo " * $SERVERNAME is shut down."
   fi
 }
 
-
 ## Set the server read-only, save the map, and have Linux sync filesystem buffers to disk
 
 mc_saveoff() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running. Commencing save..."
     echo " * Notifying users of save..."
@@ -154,21 +170,22 @@ mc_saveoff() {
     success && echo " * Map saved."
   else
     failure && echo "$SERVERNAME was not running. Not suspending saves."
-    exit 1;
+    exit 1
   fi
 }
 
 ## Set the server read-write
 
 mc_saveon() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running. Re-enabling saves..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-on\"\015'"
   else
     failure && echo " * $SERVERNAME was not running. Not resuming saves."
-    exit 1;
+    exit 1
   fi
 }
 
@@ -191,12 +208,12 @@ mc_updatecheck() {
 
   else
     failure && echo " * $SERVERNAME update could not be downloaded."
-    exit 1;
+    exit 1
   fi
 
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     echo " * $SERVERNAME is running (pid $PID). Shutting down for update..."
   else
     as_user "/bin/cp $MCPATH/$SERVICE.update $MCPATH/$SERVICE"
@@ -207,11 +224,11 @@ mc_updatecheck() {
 ## Actually do the executable update
 
 mc_updatedo() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     failure && echo " * $SERVICE is still running (pid $PID)! Cannot update."
-    exit 1;
+    exit 1
   else
     as_user "/bin/cp $MCPATH/$SERVICE.update $MCPATH/$SERVICE"
     success && echo " * $SERVERNAME successfully updated."
@@ -275,14 +292,14 @@ mc_logrotate() {
   # Look at all the logfiles
   for i in $LOGLIST; do
     LOGTMP=$(ls $i | cut -d "." -f 3)
-    # If we're working with server.log then append .0
+    # If we're working with server.log then append .1
     if [ -z $LOGTMP ]
     then
       LOGTMP=$MCPATH"/server.log"
-      LOGNEW=$LOGTMP".0"
+      LOGNEW=$LOGTMP".1"
       as_user "/bin/cp $MCPATH"/server.log" "$LOGNEW""
     # Otherwise, check if the file number is under $COUNT
-    elif [ $LOGTMP -gt $COUNT ];
+    elif [ $LOGTMP -gt $COUNT ]
     then
       # If so, delete it
       as_user "rm -f $i"
@@ -300,47 +317,60 @@ mc_logrotate() {
 ## Check if server is running and display PID
 
 mc_status() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
     echo " * $SERVERNAME (pid $PID) is running..."
   else
     echo " * $SERVERNAME is not running."
-    exit 1; # keep this exit in here so info doesn't run if server isn't active
+    exit 1
   fi
 }
 
 ## Display some extra environment informaton
 
 mc_info() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
-    PID="`ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE | awk '{print $1}'`"
-    JAVAPATH="`alternatives --display java | grep currently | cut -d " " -f 6`"
-    RSS="`ps -p $PID --format rss | tail -n 1`"
-    echo " - Java Path          : "$JAVAPATH""
-    echo " - Start Command      : "$INVOCATION""
-    echo " - Server Path        : "$MCPATH""
-    echo " - World Name         : "$WORLDNAME""
-    echo " - Process ID         : "$PID""
-    echo " - Screen Session     : "$SCRNAME""
-    echo " - Memory Usage       : `expr $RSS / 1024` Mb ($RSS kb)"
+    RSS="$(ps -p $PID --format rss | tail -n 1)"
+    HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
+    HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
+    HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
+    HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
+    HP_EXTRA="$[$HP_FREE-$HP_RSVD]"
+    HP_ALLOC="$[$HP_TOTAL-$HP_EXTRA]"
+    TOTALMEM="$[$RSS+$[HP_ALLOC*$HP_SIZE]]"
+    echo " - Java Path          : $(readlink -f $(which java))"
+    echo " - Start Command      : $INVOCATION"
+    echo " - Server Path        : $MCPATH"
+    echo " - World Name         : $WORLDNAME"
+    echo " - Process ID         : $PID"
+    echo " - Screen Session     : $SCRNAME"
+    echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
+  if [ -n $HP_TOTAL ]
+  then
+    echo " - HugePage Usage     : $[$HP_ALLOC*$[HP_SIZE/1024]] Mb ($HP_ALLOC HugePages)"
+    echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
+  fi
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|25565"
   else
     echo " * $SERVERNAME is not running."
+    exit 1
   fi
 }
  
 ## Connect to the active Screen session, disconnect with Ctrl+a then d
 
 mc_console() {
-  if ps ax | grep -v grep | grep -v -i SCREEN | grep $SERVICE > /dev/null
+  check_running
+  if [ $? -eq 0 ]
   then
     as_user "screen -S $SCRNAME -dr"
   else
     failure && echo " * $SERVERNAME was not running!"
-    exit 1;
+    exit 1
   fi
 }
 
@@ -355,7 +385,7 @@ case "$1" in
  ;;
   restart)
  mc_stop
- sleep 1;
+ sleep 1
  mc_start
  ;;
   update)
@@ -376,7 +406,6 @@ case "$1" in
  mc_status
  ;;
   info)
- mc_status
  mc_info
  ;;
   console)
@@ -394,11 +423,13 @@ case "$1" in
  mc_backupmap
  mc_backupexe
  ;;
+  checkrunning)
+ check_running
+ ;;
   *)
  echo " * Usage: minecraft {start|stop|restart|backup|update|status|info|console}"
- exit 1;
+ exit 1
  ;;
 esac
 
-## A BIG HAPPY EXIT 0 BECAUSE EVERYTHING WORKED FINE!!! :D
-exit 0;
+exit 0
