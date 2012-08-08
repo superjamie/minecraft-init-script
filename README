@@ -30,9 +30,11 @@ This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedo
 
 As the root user:
 
-* Install Sun Java and configure it as an alternative with something like
+* Install Sun Java
+* If you are using Java 1.7, you don't need to configure alternatives in the next step
+* If you are using Java 1.6, configure it as an alternative with something like
   alternatives --install /usr/bin/java java /usr/java/jre1.6.0_31/bin/java 16001
-* If you have other JVMs installed, choose Sun Java with
+  then choose Sun Java with
   alternatives --config java
 * Confirm your JVM selection with
   java -version
