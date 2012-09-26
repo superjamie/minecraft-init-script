@@ -50,6 +50,8 @@ CPU_COUNT=2
 BACKUPPATH="/home/bukkit/backups"
 # Find the world name from the existing server file
 WORLDNAME="$(cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//)"
+# Find the port number from the existing server file
+SERVERPORT="$(cat $MCPATH/server.properties | grep -E 'server-port' | sed -e s/.*server-port=//)"
 # Name of Screen session
 SCRNAME="bukkit"
 
@@ -357,7 +359,7 @@ mc_info() {
 #   echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
 # fi
     echo " - Active Connections : "
-    netstat -tna | grep -E "Proto|25565"
+    netstat -tna | grep -E "Proto|$SERVERPORT"
   else
     echo " * $SERVERNAME is not running."
     exit 1
