@@ -67,6 +67,7 @@ INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 
 # Add HugePage support if you have it configured on the OS
 # -XX:+UseLargePages
+# Note: Check the mc_info function for HugePage memory usage reporting, currently this reporting only works on Fedora and CentOS.
 
 ## Runs all commands as the non-root user
 
@@ -334,13 +335,14 @@ mc_info() {
   if [ $? -eq 0 ]
   then
     RSS="$(ps -p $PID --format rss | tail -n 1)"
-    HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
-    HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
-    HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
-    HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
-    HP_EXTRA="$[$HP_FREE-$HP_RSVD]"
-    HP_ALLOC="$[$HP_TOTAL-$HP_EXTRA]"
-    TOTALMEM="$[$RSS+$[HP_ALLOC*$HP_SIZE]]"
+#   Uncomment these lines if using HugePages on CentOS. This is a placeholder until I figure out how to get this to work on Debian/Ubuntu/others.
+#   HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
+#   HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
+#   HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
+#   HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
+#   HP_EXTRA="$[$HP_FREE-$HP_RSVD]"
+#   HP_ALLOC="$[$HP_TOTAL-$HP_EXTRA]"
+#   TOTALMEM="$[$RSS+$[HP_ALLOC*$HP_SIZE]]"
     echo " - Java Path          : $(readlink -f $(which java))"
     echo " - Start Command      : $INVOCATION"
     echo " - Server Path        : $MCPATH"
@@ -348,11 +350,12 @@ mc_info() {
     echo " - Process ID         : $PID"
     echo " - Screen Session     : $SCRNAME"
     echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
-  if [ -n $HP_TOTAL ]
-  then
-    echo " - HugePage Usage     : $[$HP_ALLOC*$[HP_SIZE/1024]] Mb ($HP_ALLOC HugePages)"
-    echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
-  fi
+#   Uncomment these lines if using HugePages on CentOS. This is a placeholder until I figure out how to get this to work on Debian/Ubuntu/others.
+# if [ -n $HP_TOTAL ]
+# then
+#   echo " - HugePage Usage     : $[$HP_ALLOC*$[HP_SIZE/1024]] Mb ($HP_ALLOC HugePages)"
+#   echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
+# fi
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|25565"
   else
