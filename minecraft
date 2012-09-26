@@ -60,7 +60,7 @@ SCRNAME="bukkit"
 
 # This is what I run my server with. Tune your RAM usage accordingly
 # Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
-INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+UseLargePages -jar $SERVICE nogui"
+INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+AggressiveOpts -XX:+UseAdaptiveGCBoundary
