@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-08-08 (YYYY-MM-DD)
+# version 2012-09-26 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -39,7 +39,7 @@ SERVERNAME="CraftBukkit"
 # Filename of server binary
 SERVICE="craftbukkit.jar"
 # URL of server executable for update checking
-SERVER_URL=http://cbukk.it/craftbukkit.jar
+SERVER_URL="http://cbukk.it/craftbukkit.jar"
 # Username of non-root user who will run the server
 USERNAME="bukkit"
 # Path of server binary and world
@@ -49,7 +49,7 @@ CPU_COUNT=2
 # Where backups go
 BACKUPPATH="/home/bukkit/backups"
 # Find the world name from the existing server file
-WORLDNAME=`cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//`
+WORLDNAME="$(cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//)"
 # Name of Screen session
 SCRNAME="bukkit"
 
