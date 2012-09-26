@@ -60,7 +60,7 @@ SCRNAME="bukkit"
 
 # This is what I run my server with. Tune your RAM usage accordingly
 # Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
-INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -jar $SERVICE nogui"
+INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+UseLargePages -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+AggressiveOpts -XX:+UseAdaptiveGCBoundary
@@ -82,8 +82,8 @@ as_user() {
 
 ## Check if the server is running or not, and get PID if it is
 
-server_running() {
-  if ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE > /dev/null
+check_running() {
+  if [ $(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | wc -l) -gt 0 ]
   then
     PID=0
     PID="$(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | awk '{print $1}')"
@@ -97,7 +97,8 @@ server_running() {
 ## Start the server executable as a service
 
 mc_start() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     failure && echo " * $SERVERNAME was already running! (pid $PID)"
     exit 1
@@ -109,7 +110,8 @@ mc_start() {
     sleep 10
     echo " * Checking $SERVERNAME is running..."
 
-    if server_running
+    check_running
+    if [ $? -eq 0 ]
     then
       success && echo " * $SERVERNAME is now running. (pid $PID)"
     else
@@ -123,7 +125,8 @@ mc_start() {
 ## Stop the executable
 
 mc_stop() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running (pid $PID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
@@ -139,7 +142,8 @@ mc_stop() {
     exit 1
   fi
 
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     failure && echo " * $SERVERNAME could not be shutdown! Still running..."
     exit 1
@@ -151,7 +155,8 @@ mc_stop() {
 ## Set the server read-only, save the map, and have Linux sync filesystem buffers to disk
 
 mc_saveoff() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running. Commencing save..."
     echo " * Notifying users of save..."
@@ -172,7 +177,8 @@ mc_saveoff() {
 ## Set the server read-write
 
 mc_saveon() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running. Re-enabling saves..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
@@ -205,7 +211,8 @@ mc_updatecheck() {
     exit 1
   fi
 
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME is running (pid $PID). Shutting down for update..."
   else
@@ -217,7 +224,8 @@ mc_updatecheck() {
 ## Actually do the executable update
 
 mc_updatedo() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     failure && echo " * $SERVICE is still running (pid $PID)! Cannot update."
     exit 1
@@ -309,7 +317,8 @@ mc_logrotate() {
 ## Check if server is running and display PID
 
 mc_status() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     echo " * $SERVERNAME (pid $PID) is running..."
   else
@@ -321,7 +330,8 @@ mc_status() {
 ## Display some extra environment informaton
 
 mc_info() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     RSS="$(ps -p $PID --format rss | tail -n 1)"
     HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
@@ -354,7 +364,8 @@ mc_info() {
 ## Connect to the active Screen session, disconnect with Ctrl+a then d
 
 mc_console() {
-  if server_running
+  check_running
+  if [ $? -eq 0 ]
   then
     as_user "screen -S $SCRNAME -dr"
   else
@@ -411,6 +422,9 @@ case "$1" in
   justbackup) # don't use this while the server is running!!!
  mc_backupmap
  mc_backupexe
+ ;;
+  checkrunning)
+ check_running
  ;;
   *)
  echo " * Usage: minecraft {start|stop|restart|backup|update|status|info|console}"
