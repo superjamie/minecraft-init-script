@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-09-26 (YYYY-MM-DD)
+# version 2012-09-27 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -38,7 +38,7 @@
 SERVERNAME="CraftBukkit"
 # Filename of server binary
 SERVICE="craftbukkit.jar"
-# URL of server executable for update checking
+# URL of server executable for update checking - http://cbukk.it/craftbukkit.jar is the recommended latest Craftbukkit URL
 SERVER_URL="http://cbukk.it/craftbukkit.jar"
 # Username of non-root user who will run the server
 USERNAME="bukkit"
@@ -69,7 +69,6 @@ INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 
 # Add HugePage support if you have it configured on the OS
 # -XX:+UseLargePages
-# Note: Check the mc_info function for HugePage memory usage reporting, currently this reporting only works on Fedora and CentOS.
 
 ## Runs all commands as the non-root user
 
@@ -85,8 +84,8 @@ as_user() {
 
 ## Check if the server is running or not, and get PID if it is
 
-check_running() {
-  if [ $(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | wc -l) -gt 0 ]
+server_running() {
+  if ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE > /dev/null
   then
     PID=0
     PID="$(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | awk '{print $1}')"
@@ -100,8 +99,7 @@ check_running() {
 ## Start the server executable as a service
 
 mc_start() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     failure && echo " * $SERVERNAME was already running! (pid $PID)"
     exit 1
@@ -113,8 +111,7 @@ mc_start() {
     sleep 10
     echo " * Checking $SERVERNAME is running..."
 
-    check_running
-    if [ $? -eq 0 ]
+    if server_running
     then
       success && echo " * $SERVERNAME is now running. (pid $PID)"
     else
@@ -128,8 +125,7 @@ mc_start() {
 ## Stop the executable
 
 mc_stop() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     echo " * $SERVERNAME is running (pid $PID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
@@ -145,8 +141,7 @@ mc_stop() {
     exit 1
   fi
 
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     failure && echo " * $SERVERNAME could not be shutdown! Still running..."
     exit 1
@@ -158,8 +153,7 @@ mc_stop() {
 ## Set the server read-only, save the map, and have Linux sync filesystem buffers to disk
 
 mc_saveoff() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     echo " * $SERVERNAME is running. Commencing save..."
     echo " * Notifying users of save..."
@@ -180,8 +174,7 @@ mc_saveoff() {
 ## Set the server read-write
 
 mc_saveon() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     echo " * $SERVERNAME is running. Re-enabling saves..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
@@ -193,7 +186,6 @@ mc_saveon() {
 }
 
 ## Checks for update, exits if update not required, updates if the server is not running
-## http://cbukk.it/craftbukkit.jar is the recommended build URL
 
 mc_updatecheck() {
   echo " * Downloading latest $SERVERNAME executable..."
@@ -214,8 +206,7 @@ mc_updatecheck() {
     exit 1
   fi
 
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     echo " * $SERVERNAME is running (pid $PID). Shutting down for update..."
   else
@@ -227,8 +218,7 @@ mc_updatecheck() {
 ## Actually do the executable update
 
 mc_updatedo() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     failure && echo " * $SERVICE is still running (pid $PID)! Cannot update."
     exit 1
@@ -320,8 +310,7 @@ mc_logrotate() {
 ## Check if server is running and display PID
 
 mc_status() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     echo " * $SERVERNAME (pid $PID) is running..."
   else
@@ -333,18 +322,9 @@ mc_status() {
 ## Display some extra environment informaton
 
 mc_info() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     RSS="$(ps -p $PID --format rss | tail -n 1)"
-#   Uncomment these lines if using HugePages on CentOS. This is a placeholder until I figure out how to get this to work on Debian/Ubuntu/others.
-#   HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
-#   HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
-#   HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
-#   HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
-#   HP_EXTRA="$[$HP_FREE-$HP_RSVD]"
-#   HP_ALLOC="$[$HP_TOTAL-$HP_EXTRA]"
-#   TOTALMEM="$[$RSS+$[HP_ALLOC*$HP_SIZE]]"
     echo " - Java Path          : $(readlink -f $(which java))"
     echo " - Start Command      : $INVOCATION"
     echo " - Server Path        : $MCPATH"
@@ -352,12 +332,18 @@ mc_info() {
     echo " - Process ID         : $PID"
     echo " - Screen Session     : $SCRNAME"
     echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
-#   Uncomment these lines if using HugePages on CentOS. This is a placeholder until I figure out how to get this to work on Debian/Ubuntu/others.
-# if [ -n $HP_TOTAL ]
-# then
-#   echo " - HugePage Usage     : $[$HP_ALLOC*$[HP_SIZE/1024]] Mb ($HP_ALLOC HugePages)"
-#   echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
-# fi
+  # Check for HugePages as CentOS/Fedora report them, and display statistics, otherwise skip  
+  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" ]
+  then
+    HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
+    HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
+    HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
+    HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
+    HP_USED="$[$HP_TOTAL-$HP_FREE+$HP_RSVD]"
+    TOTALMEM="$[$RSS+$[HP_USED*$HP_SIZE]]"
+    echo " - HugePage Usage     : $[$HP_USED*$[HP_SIZE/1024]] Mb ($HP_USED HugePages)"
+    echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
+  fi
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|$SERVERPORT"
   else
@@ -369,8 +355,7 @@ mc_info() {
 ## Connect to the active Screen session, disconnect with Ctrl+a then d
 
 mc_console() {
-  check_running
-  if [ $? -eq 0 ]
+  if server_running
   then
     as_user "screen -S $SCRNAME -dr"
   else
