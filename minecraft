@@ -413,9 +413,6 @@ case "$1" in
  mc_backupmap
  mc_backupexe
  ;;
-  checkrunning)
- check_running
- ;;
   *)
  echo " * Usage: minecraft {start|stop|restart|backup|update|status|info|console}"
  exit 1
