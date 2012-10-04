@@ -1,6 +1,6 @@
 minecraft-init-script by Super Jamie <jamie@superjamie.net>
 
-This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedora.
+This is an initscript to run a Minecraft or CraftBukkit server on CentOS, Fedora, and Ubuntu.
 
 ## Features ##
 
@@ -16,43 +16,52 @@ This is an initscript to run a Minecraft or CraftBukkit server on CentOS or Fedo
 * Simplified backup restoration
 * Log security alerts emailed to admins via sendmail/postfix
 
+## Supported Distributions ##
+
+* CentOS 6, CentOS 5, Fedora 14 (probably works on Fedora Core 6 and later, untested)
+* Ubuntu Server 12.04 LTS
+
+Other distros which use SysV Init or Upstart (Debian, Mint) will probably work.
+Distros using systemd (Fedora 15+, Arch Linux, etc) will not work.
+
 ## Requirements ##
 
-* CentOS 6, CentOS 5 (probably works on Fedora 12, 13, 14 too, maybe even Debian/Ubuntu/Mint?)
 * screen, rsync
-  (you'll need to install this)
-* bash, chkconfig, coreutils, cronie, curl, diffutils, initscripts, net-tools, procps, tar
+  (you may need to install these)
+* bash, chkconfig or sysv-rc, coreutils, cronie, curl, diffutils, grep, initscripts, net-tools, procps, tar
   (these should all be installed by default)
-* Sun Java
-* Enough disk space to save your map twice, plus another ~5 times for a week of compressed backup space. If your map is 1Gb then you probably need at least 7Gb, plus any space your plugins require and any additional backups you'll be making.
+* Oracle Java 7
+* Enough disk space to save your map twice, plus another ~5 times for a week of compressed backup space.
+  If your map is 1Gb then you probably need at least 7Gb, plus any space your plugins require and any additional backups you'll be making.
 
 ## Installation ##
 
 As the root user:
 
-* Install Sun Java
-* If you are using Java 1.7, you don't need to configure alternatives in the next step
-* If you are using Java 1.6, configure it as an alternative with something like
-  alternatives --install /usr/bin/java java /usr/java/jre1.6.0_31/bin/java 16001
-  then choose Sun Java with
-  alternatives --config java
-* Confirm your JVM selection with
+* Install Sun Java (CentOS/Fedora)
+  Download the RPM from http://www.java.com/
+  yum localinstall jre-<version>.rpm
+* Install Sun Java (Ubuntu)
+  sudo add-apt-repository ppa:webupd8team/java
+  sudo apt-get update
+  sudo apt-get install oracle-java7-installer
+* Confirm your JVM installation with
   java -version
-* Create a user with a home directory
+* Create a new user with a home directory
   useradd -m bukkit
 * Save the script as /etc/init.d/minecraft and make it executable
   chmod +x /etc/init.d/minecraft
 * Allow the bukkit user to run the init script without needing root access
-  Type `visudo` and add this line to the bottom
+  Type `visudo` and add this line to the bottom:
   bukkit localhost=NOPASSWD:/etc/init.d/minecraft*
-* Create an alias so you only have to type "minecraft" or "mc" to run the script
-  Add the following lines to both root and bukkit's ~/.bashrc file
+* Create an alias so you only have to type "minecraft" to run the script
+  Add the following line to both root and bukkit's ~/.bashrc file:
   alias minecraft='/etc/init.d/minecraft'
-  alias mc='minecraft'
-* Add the service to chkconfig
+* Start the server on system boot if desired (CentOS/Fedora)
   chkconfig --add minecraft
-* Set the server to start on system start if desired
   chkconfig minecraft on
+* Start the server on system boot if desired (Ubuntu)
+  update-rc.d minecraft defaults
 
 As the regular user, bukkit:
 
