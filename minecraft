@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-09-27 (YYYY-MM-DD)
+# version 2012-10-04 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -31,7 +31,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Source function library
-. /etc/rc.d/init.d/functions
+## CentOS/Fedora
+if [ -f /etc/rc.d/init.d/functions ]
+ then
+ . /etc/rc.d/init.d/functions
+fi
+## Ubuntu
+if [ -f /lib/lsb/init-functions ]
+ then
+ . /lib/lsb/init-functions
+fi
 
 ## Settings
 # Nice looking name of service for script to report back to users
@@ -101,21 +110,20 @@ server_running() {
 mc_start() {
   if server_running
   then
-    failure && echo " * $SERVERNAME was already running! (pid $PID)"
+    echo " * [ERROR] $SERVERNAME was already running! (pid $PID)"
     exit 1
   else
     echo " * $SERVERNAME was not already running. Starting..."
     echo " * Using map named \"$WORLDNAME\"..."
-    cd $MCPATH
-    as_user "cd $MCPATH && screen -c /dev/null -dmS $SCRNAME $INVOCATION"
+    as_user "cd \"$MCPATH\" && screen -c /dev/null -dmS $SCRNAME $INVOCATION"
     sleep 10
     echo " * Checking $SERVERNAME is running..."
 
     if server_running
     then
-      success && echo " * $SERVERNAME is now running. (pid $PID)"
+      echo " * [OK] $SERVERNAME is now running. (pid $PID)"
     else
-      failure && echo " * Could not start $SERVERNAME."
+      echo " * [ERROR] Could not start $SERVERNAME."
       exit 1
     fi
 
@@ -137,16 +145,16 @@ mc_stop() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
     sleep 10
   else
-    failure && echo " * $SERVERNAME was not running!"
+    echo " * [ERROR] $SERVERNAME was not running!"
     exit 1
   fi
 
   if server_running
   then
-    failure && echo " * $SERVERNAME could not be shutdown! Still running..."
+    echo " * [ERROR] $SERVERNAME could not be shutdown! Still running..."
     exit 1
   else
-    success && echo " * $SERVERNAME is shut down."
+    echo " * [OK] $SERVERNAME is shut down."
   fi
 }
 
@@ -164,9 +172,9 @@ mc_saveoff() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-all\"\015'"
     sync
     sleep 10
-    success && echo " * Map saved."
+    echo " * [OK] Map saved."
   else
-    failure && echo "$SERVERNAME was not running. Not suspending saves."
+    echo " * [ERROR] $SERVERNAME was not running. Not suspending saves."
     exit 1
   fi
 }
@@ -180,7 +188,7 @@ mc_saveon() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-on\"\015'"
   else
-    failure && echo " * $SERVERNAME was not running. Not resuming saves."
+    echo " * [ERROR] $SERVERNAME was not running. Not resuming saves."
     exit 1
   fi
 }
@@ -189,20 +197,20 @@ mc_saveon() {
 
 mc_updatecheck() {
   echo " * Downloading latest $SERVERNAME executable..."
-  as_user "cd $MCPATH && curl -# -L -o $MCPATH/$SERVICE.update \""$SERVER_URL"\""
+  as_user "cd \"$MCPATH\" && curl -# -L -o \"$MCPATH/$SERVICE.update\" \"$SERVER_URL\""
 
-  if [ -f $MCPATH/$SERVICE.update ]
+  if [ -f "$MCPATH/$SERVICE.update" ]
   then
     echo " * Checking downloaded update against existing server..."
 
-    if `diff $MCPATH/$SERVICE $MCPATH/$SERVICE.update >/dev/null`
+    if $(diff "$MCPATH/$SERVICE" "$MCPATH/$SERVICE.update" >/dev/null)
     then
       echo " * You are already running the latest version of $SERVERNAME!"
       exit 0; # keep this exit in as we don't need to do anything
     fi
 
   else
-    failure && echo " * $SERVERNAME update could not be downloaded."
+    echo " * [ERROR] $SERVERNAME update could not be downloaded."
     exit 1
   fi
 
@@ -210,8 +218,8 @@ mc_updatecheck() {
   then
     echo " * $SERVERNAME is running (pid $PID). Shutting down for update..."
   else
-    as_user "/bin/cp $MCPATH/$SERVICE.update $MCPATH/$SERVICE"
-    success && echo " * $SERVERNAME successfully updated."
+    as_user "/bin/cp \"$MCPATH/$SERVICE.update\" \"$MCPATH/$SERVICE\""
+    echo " * [OK] $SERVERNAME successfully updated."
   fi
 }
 
@@ -220,11 +228,11 @@ mc_updatecheck() {
 mc_updatedo() {
   if server_running
   then
-    failure && echo " * $SERVICE is still running (pid $PID)! Cannot update."
+    echo " * [ERROR] $SERVICE is still running (pid $PID)! Cannot update."
     exit 1
   else
-    as_user "/bin/cp $MCPATH/$SERVICE.update $MCPATH/$SERVICE"
-    success && echo " * $SERVERNAME successfully updated."
+    as_user "/bin/cp \"$MCPATH/$SERVICE.update\" \"$MCPATH/$SERVICE\""
+    echo " * [OK] $SERVERNAME successfully updated."
   fi
 }
 
@@ -232,50 +240,51 @@ mc_updatedo() {
 
 mc_backupmap() {
   echo " * Backing up $SERVERNAME map named \"$WORLDNAME\"..."
-  echo " * Syncing "$MCPATH"/"$WORLDNAME" to "$BACKUPPATH"/"$WORLDNAME""
-  as_user "cd $MCPATH && rsync -cghLoprtu "$WORLDNAME" "$BACKUPPATH""
+  echo " * Syncing \"$MCPATH/$WORLDNAME\" to \"$BACKUPPATH/$WORLDNAME\""
+  as_user "cd \"$MCPATH\" && rsync -cghLoprtu \"$WORLDNAME\" \"$BACKUPPATH\""
   sleep 10
   echo " * Creating compressed backup..."
-  NOW="`date "+%Y-%m-%d.%H-%M-%S"`"
+  NOW="$(date +%Y-%m-%d.%H-%M-%S)"
   # Create a compressed backup file and background it so we can get back to restarting the server
   # You can tell when the compression is done as it makes an md5sum file of the backup
-  as_user "cd $BACKUPPATH && tar cfz "$WORLDNAME"_backup_"$NOW".tar.gz "$WORLDNAME" && md5sum "$WORLDNAME"_backup_"$NOW".tar.gz > "$WORLDNAME"_backup_"$NOW".tar.gz.md5 &" # we can background this and get to restarting the server
-  success && echo " * Backed up map."
+  as_user "cd \"$BACKUPPATH\" && tar cfz \"$WORLDNAME_backup_$NOW.tar.gz\" \"$WORLDNAME\" && md5sum \"$WORLDNAME_backup_$NOW.tar.gz\" > \"$WORLDNAME_backup_$NOW.tar.gz.md5\" &"
+  # we can safely background the above command and get back to restarting the server
+  echo " * [OK] Backed up map."
 }
 
 ## Backs up executable by copying it to backup location
 
 mc_backupexe() {
   echo " * Backing up the $SERVERNAME server executable..."
-  as_user "cd $MCPATH && cp "$SERVICE" "$BACKUPPATH"/"$SERVICE"_backup_"$NOW".jar"
-  success && echo " * Backed up executable."
+  as_user "cd \"$MCPATH\" && cp \"$SERVICE\" \"$BACKUPPATH/$SERVICE_backup_$NOW.jar\""
+  echo " * [OK] Backed up executable."
 }
 
 ## Removes any backups older than 7 days, designed to be called by daily cron job
 
 mc_removeoldbackups() {
-  NUMBEROFBACKUPS="`find \"$BACKUPPATH\" -name \""$WORLDNAME"_backup*\" -type f -mtime +7 | wc -l`"
-  if [ $NUMBEROFBACKUPS -ge 1 ]
+  NUMBEROFBACKUPS="$(find \"$BACKUPPATH\" -name \"$WORLDNAME_backup*\" -type f -mtime +7 | wc -l)"
+  if [ "$NUMBEROFBACKUPS" -ge 1 ]
   then
     echo " * Removing map backups older than 7 days..."
-    as_user "cd $BACKUPPATH && find . -name \""$WORLDNAME"_backup*\" -type f -mtime +7 | xargs rm -fv"
+    as_user "cd \"$BACKUPPATH\" && find . -name \"$WORLDNAME_backup*\" -type f -mtime +7 | xargs rm -fv"
     echo " * Removed old map backups."
   else
     echo " * No map backups older than 7 days to remove."
   fi
 
-  NUMBEROFEXES="`find \"$BACKUPPATH\" -name \""$SERVICE"_backup*\" -type f -mtime +7 | wc -l`"
-  if [ $NUMBEROFEXES -ge 1 ]
+  NUMBEROFEXES="$(find \"$BACKUPPATH\" -name \"$SERVICE_backup*\" -type f -mtime +7 | wc -l)"
+  if [ "$NUMBEROFEXES" -ge 1 ]
   then
     echo " * Removing executable backups older than 7 days..."
-    as_user "cd $BACKUPPATH && find . -name \""$SERVICE"_backup*\" -type f -mtime +7 | xargs rm -fv"
+    as_user "cd \"$BACKUPPATH\" && find . -name \"$SERVICE_backup*\" -type f -mtime +7 | xargs rm -fv"
     echo " * Removed old executable backups."
   else
     echo " * No executable backups older than 7 days to remove."
   fi
 }
 
-## Rotates logfile to server.0 through server.7, designed to be called by daily cron job
+## Rotates logfile to server.1 through server.7, designed to be called by daily cron job
 
 mc_logrotate() {
   # Server logfiles in chronological order
@@ -288,9 +297,9 @@ mc_logrotate() {
     # If we're working with server.log then append .1
     if [ -z $LOGTMP ]
     then
-      LOGTMP=$MCPATH"/server.log"
-      LOGNEW=$LOGTMP".1"
-      as_user "/bin/cp $MCPATH"/server.log" "$LOGNEW""
+      LOGTMP="$MCPATH/server.log"
+      LOGNEW="$LOGTMP.1"
+      as_user "/bin/cp $MCPATH/server.log $LOGNEW"
     # Otherwise, check if the file number is under $COUNT
     elif [ $LOGTMP -gt $COUNT ]
     then
@@ -332,17 +341,17 @@ mc_info() {
     echo " - Process ID         : $PID"
     echo " - Screen Session     : $SCRNAME"
     echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
-  # Check for HugePages as CentOS/Fedora report them, and display statistics, otherwise skip  
-  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" ]
+  # Check for HugePages support in kernel, display statistics if HugePages are in use, otherwise skip
+  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -a "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -gt 0 ]
   then
     HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
     HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
     HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
     HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
     HP_USED="$[$HP_TOTAL-$HP_FREE+$HP_RSVD]"
-    TOTALMEM="$[$RSS+$[HP_USED*$HP_SIZE]]"
-    echo " - HugePage Usage     : $[$HP_USED*$[HP_SIZE/1024]] Mb ($HP_USED HugePages)"
-    echo " - Total Memory Usage : $[TOTALMEM/1024] Mb ($TOTALMEM kb)"
+    TOTALMEM="$[$RSS+$[$HP_USED*$HP_SIZE]]"
+    echo " - HugePage Usage     : $[$HP_USED*$[$HP_SIZE/1024]] Mb ($HP_USED HugePages)"
+    echo " - Total Memory Usage : $[$TOTALMEM/1024] Mb ($TOTALMEM kb)"
   fi
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|$SERVERPORT"
@@ -359,7 +368,7 @@ mc_console() {
   then
     as_user "screen -S $SCRNAME -dr"
   else
-    failure && echo " * $SERVERNAME was not running!"
+    echo " * [ERROR] $SERVERNAME was not running!"
     exit 1
   fi
 }
