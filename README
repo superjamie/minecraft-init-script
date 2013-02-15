@@ -68,11 +68,20 @@ As the regular user, bukkit:
 * Make the required paths
   mkdir -p ~/backups && mkdir -p ~/craftbukkit
 * Put your craftbukkit.jar, world, plugins, server.properties, etc into ~/craftbukkit
+
+## Backups ##
+
 * Create cron jobs to do regular backups and rotations around 4am
   Type `crontab -e` to open the cron interface and add the following
-  0 4 * * * /etc/init.d/minecraft backup
-  5 4 * * * /etc/init.d/minecraft logrotate
-  15 4 * * * /etc/init.d/minecraft removeoldbackups
+   0 4 * * * /etc/init.d/minecraft backup              # backup world at 4:00am
+   5 4 * * * /etc/init.d/minecraft logrotate           # rotate logs at 4:05am
+  15 4 * * * /etc/init.d/minecraft removeoldbackups    # remove old backups at 4:30am
+
+* If you have multiple worlds, you can pass the worldname as a parameter to the regular backup
+   0 4 * * * /etc/init.d/minecraft backup world1       # backup world1 at 4:00am
+   5 4 * * * /etc/init.d/minecraft logrotate           # rotate logs at 4:05am
+  15 4 * * * /etc/init.d/minecraft backup world2       # backup world2 at 4:15am
+  30 4 * * * /etc/init.d/minecraft removeoldbackups    # remove old backups at 4:30am
 
 ## Usage ##
 
@@ -84,6 +93,9 @@ As the regular user, bukkit:
   minecraft restart
 * Back up the map and executable (the compressed backup is done when the .md5 file appears in the backup directory)
   minecraft backup
+* Back up multiple maps
+  minecraft backup world1
+  minecraft backup world2
 * Check the server is running with
   minecraft status
 * Get some more info with
@@ -123,4 +135,3 @@ Thanks to these people whose work I have used in the making of this
 * http://forums.bukkit.org/threads/tutorial-centos-bukkit-installation.56371/
 * http://www.minecraftwiki.net/wiki/M3tal_Warrior_Server_Startup_Script
 * http://forums.bukkit.org/threads/admin-linux-init-script-for-bukkit.53235/
-
