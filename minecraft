@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2012-10-04 (YYYY-MM-DD)
+# version 2013-02-15 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -43,6 +43,7 @@ if [ -f /lib/lsb/init-functions ]
 fi
 
 ## Settings
+
 # Nice looking name of service for script to report back to users
 SERVERNAME="CraftBukkit"
 # Filename of server binary
@@ -74,7 +75,10 @@ SCRNAME="bukkit"
 INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
-# -XX:+UseFastAccessorMethods -XX:+AggressiveOpts -XX:+UseAdaptiveGCBoundary
+# -XX:+UseFastAccessorMethods -XX:+UseAdaptiveGCBoundary
+
+# I've had a suggestion from a Java tuning engineer to use these
+# -XX:+AggressiveOpts -XX:+UseCompressedStrings
 
 # Add HugePage support if you have it configured on the OS
 # -XX:+UseLargePages
@@ -103,7 +107,6 @@ server_running() {
     return 1
   fi
 }
-
 
 ## Start the server executable as a service
 
@@ -145,7 +148,7 @@ mc_stop() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
     sleep 10
   else
-    echo " * [ERROR] $SERVERNAME was not running!"
+    echo " * [ERROR] $SERVERNAME was not running! Unable to stop."
     exit 1
   fi
 
@@ -174,8 +177,7 @@ mc_saveoff() {
     sleep 10
     echo " * [OK] Map saved."
   else
-    echo " * [ERROR] $SERVERNAME was not running. Not suspending saves."
-    exit 1
+    echo " * [INFO] $SERVERNAME was not running. Not suspending saves."
   fi
 }
 
@@ -188,8 +190,7 @@ mc_saveon() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-on\"\015'"
   else
-    echo " * [ERROR] $SERVERNAME was not running. Not resuming saves."
-    exit 1
+    echo " * [INFO] $SERVERNAME was not running. Not resuming saves."
   fi
 }
 
@@ -236,18 +237,34 @@ mc_updatedo() {
   fi
 }
 
+## Check and see if a worldname was given to the backup command. Use the default world, or check the optional world exists and exit if it doesn't.
+
+mc_checkbackup() {
+  if [ -n "$1" ]
+    then
+    WORLDNAME="$1"
+      if [ -d "$MCPATH/$WORLDNAME" ]
+        then
+        echo " * Found world named \"$MCPATH/$WORLDNAME\""
+      else
+        echo " * Could not find world named \"$MCPATH/$WORLDNAME\""
+        exit 1
+      fi
+  fi
+}
+
 ## Backs up map by rsyncing current world to backup location, creates tar.gz with datestamp
 
 mc_backupmap() {
   echo " * Backing up $SERVERNAME map named \"$WORLDNAME\"..."
   echo " * Syncing \"$MCPATH/$WORLDNAME\" to \"$BACKUPPATH/$WORLDNAME\""
-  as_user "cd \"$MCPATH\" && rsync -cghLoprtu \"$WORLDNAME\" \"$BACKUPPATH\""
+  as_user "rsync -cghLoprtu \"$MCPATH/$WORLDNAME\" \"$BACKUPPATH\""
   sleep 10
   echo " * Creating compressed backup..."
   NOW="$(date +%Y-%m-%d.%H-%M-%S)"
   # Create a compressed backup file and background it so we can get back to restarting the server
   # You can tell when the compression is done as it makes an md5sum file of the backup
-  as_user "cd \"$BACKUPPATH\" && tar cfz \"$WORLDNAME_backup_$NOW.tar.gz\" \"$WORLDNAME\" && md5sum \"$WORLDNAME_backup_$NOW.tar.gz\" > \"$WORLDNAME_backup_$NOW.tar.gz.md5\" &"
+  as_user "cd "$BACKUPPATH"; tar cfz \""$WORLDNAME"_backup_"$NOW".tar.gz\" \"$WORLDNAME\"; md5sum \""$WORLDNAME"_backup_"$NOW".tar.gz\" > \""$WORLDNAME"_backup_"$NOW".tar.gz.md5\" &"
   # we can safely background the above command and get back to restarting the server
   echo " * [OK] Backed up map."
 }
@@ -256,7 +273,8 @@ mc_backupmap() {
 
 mc_backupexe() {
   echo " * Backing up the $SERVERNAME server executable..."
-  as_user "cd \"$MCPATH\" && cp \"$SERVICE\" \"$BACKUPPATH/$SERVICE_backup_$NOW.jar\""
+  NOW="$(date +%Y-%m-%d.%H-%M-%S)"
+  as_user "cp \""$MCPATH"/"$SERVICE"\" \""$BACKUPPATH"/"$SERVICE"_backup_"$NOW".jar\""
   echo " * [OK] Backed up executable."
 }
 
@@ -293,7 +311,7 @@ mc_logrotate() {
   COUNT=6
   # Look at all the logfiles
   for i in $LOGLIST; do
-    LOGTMP=$(ls $i | cut -d "." -f 3)
+    LOGTMP=$(basename $i | cut -d "." -f 3)
     # If we're working with server.log then append .1
     if [ -z $LOGTMP ]
     then
@@ -307,7 +325,7 @@ mc_logrotate() {
       as_user "rm -f $i"
     else
       # Otherwise, add one to the number
-      LOGBASE=$(ls $i | cut -d "." -f 1-2)
+      LOGBASE=$(basename $i | cut -d "." -f 1-2)
       LOGNEW=$LOGBASE.$(($LOGTMP+1))
       as_user "/bin/cp $i $LOGNEW"
     fi
@@ -321,9 +339,9 @@ mc_logrotate() {
 mc_status() {
   if server_running
   then
-    echo " * $SERVERNAME (pid $PID) is running..."
+    echo " * $SERVERNAME status: Running (pid $PID)"
   else
-    echo " * $SERVERNAME is not running."
+    echo " * $SERVERNAME status: Not running."
     exit 1
   fi
 }
@@ -356,7 +374,7 @@ mc_info() {
     echo " - Active Connections : "
     netstat -tna | grep -E "Proto|$SERVERPORT"
   else
-    echo " * $SERVERNAME is not running."
+    echo " * $SERVERNAME is not running. Unable to give info."
     exit 1
   fi
 }
@@ -368,7 +386,7 @@ mc_console() {
   then
     as_user "screen -S $SCRNAME -dr"
   else
-    echo " * [ERROR] $SERVERNAME was not running!"
+    echo " * [ERROR] $SERVERNAME was not running! Unable to console."
     exit 1
   fi
 }
@@ -396,6 +414,7 @@ case "$1" in
  mc_start
  ;;
   backup)
+ mc_checkbackup "$2"
  mc_saveoff
  mc_backupmap
  mc_backupexe
@@ -419,11 +438,12 @@ case "$1" in
  ;;
 # Debug usage only
   justbackup) # don't use this while the server is running!!!
+ mc_checkbackup
  mc_backupmap
  mc_backupexe
  ;;
   *)
- echo " * Usage: minecraft {start|stop|restart|backup|update|status|info|console}"
+ echo " * Usage: minecraft {start|stop|restart|backup (worldname)|update|status|info|console}"
  exit 1
  ;;
 esac
