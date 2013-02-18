@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2013-02-15 (YYYY-MM-DD)
+# version 2013-02-18 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -258,7 +258,7 @@ mc_checkbackup() {
 mc_backupmap() {
   echo " * Backing up $SERVERNAME map named \"$WORLDNAME\"..."
   echo " * Syncing \"$MCPATH/$WORLDNAME\" to \"$BACKUPPATH/$WORLDNAME\""
-  as_user "rsync -cghLoprtu \"$MCPATH/$WORLDNAME\" \"$BACKUPPATH\""
+  as_user "rsync --checksum --group --human-readable --copy-links --owner --perms --recursive --times --update --delete \"$MCPATH/$WORLDNAME\" \"$BACKUPPATH\""
   sleep 10
   echo " * Creating compressed backup..."
   NOW="$(date +%Y-%m-%d.%H-%M-%S)"
