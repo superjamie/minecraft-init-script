@@ -301,7 +301,7 @@ mc_logrotate() {
     then
       LOGTMP="$MCPATH/server.log"
       LOGNEW="$LOGTMP.1"
-      as_user "/bin/cp $MCPATH/server.log $LOGNEW"
+      as_user "/bin/cp $MCPATH/server.log $MCPATH/$LOGNEW"
     # Otherwise, check if the file number is under $COUNT
     elif [ $LOGTMP -gt $COUNT ]
     then
@@ -311,7 +311,7 @@ mc_logrotate() {
       # Otherwise, add one to the number
       LOGBASE=$(basename $i | cut -d "." -f 1-2)
       LOGNEW=$LOGBASE.$(($LOGTMP+1))
-      as_user "/bin/cp $i $LOGNEW"
+      as_user "/bin/cp $i $MCPATH/$LOGNEW"
     fi
   done
   # Blank the existing logfile to renew it
