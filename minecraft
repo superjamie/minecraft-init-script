@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2013-02-18 (YYYY-MM-DD)
+# version 2013-04-15 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -299,8 +299,7 @@ mc_logrotate() {
     # If we're working with server.log then append .1
     if [ -z $LOGTMP ]
     then
-      LOGTMP="$MCPATH/server.log"
-      LOGNEW="$LOGTMP.1"
+      LOGNEW="server.log.1"
       as_user "/bin/cp $MCPATH/server.log $MCPATH/$LOGNEW"
     # Otherwise, check if the file number is under $COUNT
     elif [ $LOGTMP -gt $COUNT ]
