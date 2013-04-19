@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2013-04-15 (YYYY-MM-DD)
+# version 2013-04-19 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -55,7 +55,7 @@ USERNAME="bukkit"
 # Path of server binary and world
 MCPATH="/home/bukkit/craftbukkit"
 # Number of CPU cores to thread across if using multithreaded garbage collection
-CPU_COUNT=2
+CPU_COUNT="2"
 # Where backups go
 BACKUPPATH="/home/bukkit/backups"
 # Find the world name from the existing server file
@@ -72,7 +72,7 @@ SCRNAME="bukkit"
 
 # This is what I run my server with. Tune your RAM usage accordingly
 # Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
-INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -jar $SERVICE nogui"
+INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+AggressiveOpts -XX:+UseCompressedStrings -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+UseAdaptiveGCBoundary
@@ -83,29 +83,44 @@ INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 # Add HugePage support if you have it configured on the OS
 # -XX:+UseLargePages
 
+# I have no idea if it helps, but you can add SSE support depending on your CPU (check /proc/cpuinfo):
+# -XX:UseSSE=3
+
 ## Runs all commands as the non-root user
 
 as_user() {
-  ME=$(whoami)
-  if [ $ME == $USERNAME ]
+  ME="$(whoami)"
+  if [ "$ME" == "$USERNAME" ]
   then
     bash -c "$1"
   else
-    su - $USERNAME -c "$1"
+    su - "$USERNAME" -c "$1"
   fi
 }
 
-## Check if the server is running or not, and get PID if it is
+## Check if the server is running or not, and get the Java Process ID if it is
 
 server_running() {
-  if ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE > /dev/null
+  # Get the PID of the running Screen session:
+  # ps, remove grep, look for Screen, look for the Screen session named $SCRNAME to differentiate between multiple servers, awk out everything but the PID of Screen
+  SCREENPID=""
+  SCREENPID="$(ps -ef | grep -v grep | grep -i screen | grep $SCRNAME | awk '{print $2}')"
+  # If the Screen session with $SCRNAME is not running, then the server is not running, so we return 1 and exit the function
+  if [ -z "$SCREENPID" ]
   then
-    PID=0
-    PID="$(ps ax | grep -v grep | grep -iv SCREEN | grep $SERVICE | awk '{print $1}')"
-    return 0
-  else
+   return 1
+  fi
+  JAVAPID=""
+  # PID="$(ps -ef | grep -v grep | grep -i screen | grep $SCRNAME | awk '{print $2}' | xargs ps -f --ppid | grep $SERVICE | awk '{print $2}')"
+  # Use the Screen session PID to see what processes it is parent to, which is the actual PID of the Java process, check that that PID is actually $SERVICE
+  JAVAPID="$(ps -f --ppid $SCREENPID | grep $SERVICE | awk '{print $2}')"
+  # If the Java process is not running, then the server is not running, so we return 1 to exit the function
+  if [ -z "$JAVAPID" ]
+  then
     return 1
   fi
+  # If we haven't failed those two tests, we must have a running server, so we return success
+  return 0
 }
 
 ## Start the server executable as a service
@@ -113,7 +128,7 @@ server_running() {
 mc_start() {
   if server_running
   then
-    echo " * [ERROR] $SERVERNAME was already running! (pid $PID)"
+    echo " * [ERROR] $SERVERNAME was already running (pid $JAVAPID). Not starting!"
     exit 1
   else
     echo " * $SERVERNAME was not already running. Starting..."
@@ -124,7 +139,7 @@ mc_start() {
 
     if server_running
     then
-      echo " * [OK] $SERVERNAME is now running. (pid $PID)"
+      echo " * [OK] $SERVERNAME is now running (pid $JAVAPID)."
     else
       echo " * [ERROR] Could not start $SERVERNAME."
       exit 1
@@ -138,7 +153,7 @@ mc_start() {
 mc_stop() {
   if server_running
   then
-    echo " * $SERVERNAME is running (pid $PID). Commencing shutdown..."
+    echo " * $SERVERNAME is running (pid $JAVAPID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
     echo " * Saving map named \"$WORLDNAME\" to disk..."
@@ -148,13 +163,13 @@ mc_stop() {
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
     sleep 10
   else
-    echo " * [ERROR] $SERVERNAME was not running! Unable to stop."
+    echo " * [ERROR] $SERVERNAME was not running. Unable to stop!"
     exit 1
   fi
 
   if server_running
   then
-    echo " * [ERROR] $SERVERNAME could not be shutdown! Still running..."
+    echo " * [ERROR] $SERVERNAME is still running (pid $JAVAPID). Could not be shutdown!"
     exit 1
   else
     echo " * [OK] $SERVERNAME is shut down."
@@ -217,7 +232,7 @@ mc_updatecheck() {
 
   if server_running
   then
-    echo " * $SERVERNAME is running (pid $PID). Shutting down for update..."
+    echo " * $SERVERNAME is running (pid $JAVAPID). Shutting down for update..."
   else
     as_user "/bin/cp \"$MCPATH/$SERVICE.update\" \"$MCPATH/$SERVICE\""
     echo " * [OK] $SERVERNAME successfully updated."
@@ -229,7 +244,7 @@ mc_updatecheck() {
 mc_updatedo() {
   if server_running
   then
-    echo " * [ERROR] $SERVICE is still running (pid $PID)! Cannot update."
+    echo " * [ERROR] $SERVICE is still running (pid $JAVAPID). Cannot update!"
     exit 1
   else
     as_user "/bin/cp \"$MCPATH/$SERVICE.update\" \"$MCPATH/$SERVICE\""
@@ -264,9 +279,9 @@ mc_backupmap() {
   NOW="$(date +%Y-%m-%d.%H-%M-%S)"
   # Create a compressed backup file and background it so we can get back to restarting the server
   # You can tell when the compression is done as it makes an md5sum file of the backup
-  as_user "cd "$BACKUPPATH"; tar cfz \""$WORLDNAME"_backup_"$NOW".tar.gz\" \"$WORLDNAME\"; md5sum \""$WORLDNAME"_backup_"$NOW".tar.gz\" > \""$WORLDNAME"_backup_"$NOW".tar.gz.md5\" &"
+  as_user "cd "$BACKUPPATH" && tar cfz \""$WORLDNAME"_backup_"$NOW".tar.gz\" \"$WORLDNAME\" && md5sum \""$WORLDNAME"_backup_"$NOW".tar.gz\" > \""$WORLDNAME"_backup_"$NOW".tar.gz.md5\" &"
   # we can safely background the above command and get back to restarting the server
-  echo " * [OK] Backed up map."
+  echo " * [OK] Backed up map \"$WORLDNAME\"."
 }
 
 ## Backs up executable by copying it to backup location
@@ -290,27 +305,27 @@ mc_removeoldbackups() {
 
 mc_logrotate() {
   # Server logfiles in chronological order
-  LOGLIST=$(ls -r $MCPATH/server.log* | grep -v lck)
+  LOGLIST="$(ls -r $MCPATH/server.log* | grep -v lck)"
   # How many logs to keep
-  COUNT=6
+  COUNT="6"
   # Look at all the logfiles
-  for i in $LOGLIST; do
-    LOGTMP=$(basename $i | cut -d "." -f 3)
+  for logfile in $LOGLIST; do
+    LOGTMP="$(basename $logfile | cut -d '.' -f 3)"
     # If we're working with server.log then append .1
-    if [ -z $LOGTMP ]
+    if [ -z "$LOGTMP" ]
     then
       LOGNEW="server.log.1"
-      as_user "/bin/cp $MCPATH/server.log $MCPATH/$LOGNEW"
-    # Otherwise, check if the file number is under $COUNT
-    elif [ $LOGTMP -gt $COUNT ]
+      as_user "/bin/cp $logfile $MCPATH/$LOGNEW"
+    # Otherwise, check if the file number is greater than $COUNT
+    elif [ "$LOGTMP" -gt "$COUNT" ]
     then
       # If so, delete it
-      as_user "rm -f $i"
+      as_user "rm -f $logfile"
     else
       # Otherwise, add one to the number
-      LOGBASE=$(basename $i | cut -d "." -f 1-2)
-      LOGNEW=$LOGBASE.$(($LOGTMP+1))
-      as_user "/bin/cp $i $MCPATH/$LOGNEW"
+      LOGBASE="$(basename $logfile | cut -d '.' -f 1-2)"
+      LOGNEW="$LOGBASE.$(($LOGTMP+1))"
+      as_user "/bin/cp $logfile $MCPATH/$LOGNEW"
     fi
   done
   # Blank the existing logfile to renew it
@@ -322,7 +337,7 @@ mc_logrotate() {
 mc_status() {
   if server_running
   then
-    echo " * $SERVERNAME status: Running (pid $PID)"
+    echo " * $SERVERNAME status: Running (pid $JAVAPID)."
   else
     echo " * $SERVERNAME status: Not running."
     exit 1
@@ -334,12 +349,12 @@ mc_status() {
 mc_info() {
   if server_running
   then
-    RSS="$(ps -p $PID --format rss | tail -n 1)"
+    RSS="$(ps --pid $JAVAPID --format rss | grep -v RSS)"
     echo " - Java Path          : $(readlink -f $(which java))"
     echo " - Start Command      : $INVOCATION"
     echo " - Server Path        : $MCPATH"
     echo " - World Name         : $WORLDNAME"
-    echo " - Process ID         : $PID"
+    echo " - Process ID         : $JAVAPID"
     echo " - Screen Session     : $SCRNAME"
     echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
   # Check for HugePages support in kernel, display statistics if HugePages are in use, otherwise skip
@@ -355,7 +370,7 @@ mc_info() {
     echo " - Total Memory Usage : $[$TOTALMEM/1024] Mb ($TOTALMEM kb)"
   fi
     echo " - Active Connections : "
-    netstat -tna | grep -E "Proto|$SERVERPORT"
+    netstat --inet -tna | grep -E "Proto|$SERVERPORT"
   else
     echo " * $SERVERNAME is not running. Unable to give info."
     exit 1
