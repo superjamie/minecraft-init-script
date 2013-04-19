@@ -10,6 +10,7 @@ This is an initscript to run a Minecraft or CraftBukkit server on CentOS, Fedora
 * Backup compression and rotation (keeps 7 days worth of backups)
 * Check latest Recommended Build and update to it if required
 * Information display including Java path, current memory usage, current TCP connections
+* Able to run multiple separate instances of the server at once
 
 ## Features I'm considering adding ##
 
@@ -82,6 +83,27 @@ As the regular user, bukkit:
    5 4 * * * /etc/init.d/minecraft logrotate           # rotate logs at 4:05am
   15 4 * * * /etc/init.d/minecraft backup world2       # backup world2 at 4:15am
   30 4 * * * /etc/init.d/minecraft removeoldbackups    # remove old backups at 4:30am
+
+## Multiple Instances ##
+
+It is possible to run multiple instances, for example a Creative server and a Survival server, on the same OS.
+
+* Copy the script to two new files
+  cp /etc/init.d/minecraft /etc/init.d/minecraft-creative
+  cp /etc/init.d/minecraft /etc/init.d/minecraft-survival
+* Edit the Provides section on Line 6 to the same as the new filename
+  # Provides: minecraft-creative
+  # Provides: minecraft-survival
+* Set an alias for each server in ~/.bashrc
+  alias creative='/etc/init.d/minecraft-creative'
+  alias survival='/etc/init.d/minecraft-survival'
+* Add the new scripts to chkconfig or update-rc.d
+* Set the paths of the separate maps in each script
+  MCPATH="/home/bukkit/craftbukkit-creative"
+  MCPATH="/home/bukkit/craftbukkit-survival"
+* Change your screen session names in each script
+  SCRNAME="creative"
+  SCRNAME="survival"
 
 ## Usage ##
 
