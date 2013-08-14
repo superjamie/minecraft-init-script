@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2013-04-19 (YYYY-MM-DD)
+# version 2013-08-14 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -30,7 +30,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Source function library
+# Define the settings file
+
+SETTINGSFILE="/etc/sysconfig/minecraft"
+
+# Source the function library
 ## CentOS/Fedora
 if [ -f /etc/rc.d/init.d/functions ]
  then
@@ -42,37 +46,48 @@ if [ -f /lib/lsb/init-functions ]
  . /lib/lsb/init-functions
 fi
 
-## Settings
+<<COMMENT
+## ---------------------------------------------------------
+## copy between these lines and place them at /etc/sysconfig/minecraft
+## do not include the <<COMMENT and COMMENT words
+
+## Settings for minecraft-init-script
 
 # Nice looking name of service for script to report back to users
 SERVERNAME="CraftBukkit"
+
 # Filename of server binary
 SERVICE="craftbukkit.jar"
+
 # URL of server executable for update checking - http://cbukk.it/craftbukkit.jar is the recommended latest Craftbukkit URL
 SERVER_URL="http://cbukk.it/craftbukkit.jar"
+
 # Username of non-root user who will run the server
 USERNAME="bukkit"
+
 # Path of server binary and world
 MCPATH="/home/bukkit/craftbukkit"
+
 # Number of CPU cores to thread across if using multithreaded garbage collection
 CPU_COUNT="2"
+
 # Where backups go
 BACKUPPATH="/home/bukkit/backups"
-# Find the world name from the existing server file
-WORLDNAME="$(cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//)"
-# Find the port number from the existing server file
-SERVERPORT="$(cat $MCPATH/server.properties | grep -E 'server-port' | sed -e s/.*server-port=//)"
-# Name of Screen session
-SCRNAME="bukkit"
 
-## The Java command to run the server
+# How many days worth of backups to keep (default 7)
+BACKUPS_TO_KEEP="7"
+
+# Name of Screen session
+SCRNAME="minecraft"
+
+## The Java command to run the server, uncomment one INVOCATION line only!
 
 # Nothing special, just start the server with 1Gb RAM
 # INVOCATION="java -Xms1024M -Xmx1024M -Djava.net.preferIPv4Stack=true -jar $SERVICE nogui"
 
-# This is what I run my server with. Tune your RAM usage accordingly
+# This is what I run my server with, tune your RAM usage accordingly
 # Tested fastest GC - Default parallel new gen collector, plus parallel old gen collector
-INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+AggressiveOpts -XX:+UseCompressedStrings -jar $SERVICE nogui"
+INVOCATION="java -Xms1024M -Xmx1024M -Djava.net.preferIPv4Stack=true -XX:MaxPermSize=128M -XX:UseSSE=3 -XX:-DisableExplicitGC -XX:+UseParallelOldGC -XX:ParallelGCThreads=$CPU_COUNT -XX:+AggressiveOpts -XX:+UseCompressedStrings -jar $SERVICE nogui"
 
 # I removed these "performance" commands as I don't see any difference with them
 # -XX:+UseFastAccessorMethods -XX:+UseAdaptiveGCBoundary
@@ -81,10 +96,44 @@ INVOCATION="java -Xms2048M -Xmx2048M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 # -XX:+AggressiveOpts -XX:+UseCompressedStrings
 
 # Add HugePage support if you have it configured on the OS
+# You should be using HugePages if you give more than 4Gb on the Java invocation line
 # -XX:+UseLargePages
 
-# I have no idea if it helps, but you can add SSE support depending on your CPU (check /proc/cpuinfo):
-# -XX:UseSSE=3
+## End of settings file
+## ---------------------------------------------------------
+COMMENT
+
+### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### You shouldn't need to edit anything below here! ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ###
+
+## Apply the settings file
+
+# check the file exists, and fail if not
+if [ ! -f "$SETTINGSFILE" ]
+ then
+ echo " * [ERROR] Settings file $SETTINGSFILE does not exist. Can't run!"
+ exit 1;
+fi
+
+# if exists so source it
+. "$SETTINGSFILE"
+
+# if the settings are not applying for some reason, then fail
+if [ ! "$SETTINGS_FILE_WORKING" == "1" ]
+ then
+ echo " * [ERROR] Settings file $SETTINGSFILE is not applying. Can't run!"
+ echo " Check your options are uncommented and you haven't copied the <<COMMENT block."
+ exit 1;
+fi
+
+## Get some more info from the settings file
+
+# Find the world name from the existing server file
+WORLDNAME="$(cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//)"
+
+# Find the port number from the existing server file
+SERVERPORT="$(cat $MCPATH/server.properties | grep -E 'server-port' | sed -e s/.*server-port=//)"
 
 ## Runs all commands as the non-root user
 
@@ -102,24 +151,23 @@ as_user() {
 
 server_running() {
   # Get the PID of the running Screen session:
-  # ps, remove grep, look for Screen, look for the Screen session named $SCRNAME to differentiate between multiple servers, awk out everything but the PID of Screen
+  # ps, remove grep, look for screen, look for the screen session $SCRNAME to differentiate between multiple servers, awk out everything but the pid
   SCREENPID=""
   SCREENPID="$(ps -ef | grep -v grep | grep -i screen | grep $SCRNAME | awk '{print $2}')"
-  # If the Screen session with $SCRNAME is not running, then the server is not running, so we return 1 and exit the function
+  # if the screen session with $SCRNAME is not running, then the server is not running, so we return 1 and exit the function
   if [ -z "$SCREENPID" ]
   then
    return 1
   fi
-  JAVAPID=""
   # PID="$(ps -ef | grep -v grep | grep -i screen | grep $SCRNAME | awk '{print $2}' | xargs ps -f --ppid | grep $SERVICE | awk '{print $2}')"
-  # Use the Screen session PID to see what processes it is parent to, which is the actual PID of the Java process, check that that PID is actually $SERVICE
+  # use the screen session pid to get the parent pid, which is the actual pid of the java process, check that process is actually $SERVICE
   JAVAPID="$(ps -f --ppid $SCREENPID | grep $SERVICE | awk '{print $2}')"
-  # If the Java process is not running, then the server is not running, so we return 1 to exit the function
+  # if the java process is not running, then the server is not running, so we return 1 to exit the function
   if [ -z "$JAVAPID" ]
   then
     return 1
   fi
-  # If we haven't failed those two tests, we must have a running server, so we return success
+  # if we haven't failed those two tests, we have a running server, so we return success
   return 0
 }
 
@@ -293,17 +341,23 @@ mc_backupexe() {
   echo " * [OK] Backed up executable."
 }
 
-## Removes any backups older than 7 days, designed to be called by daily cron job
+## Removes any backups older than $BACKUPSTOKEEP days, designed to be called by daily cron job
 
 mc_removeoldbackups() {
-  echo " * Removing backups older than 7 days..."
-  as_user "cd \"$BACKUPPATH\" && find . -name \"*backup*\" -type f -mtime +7 | xargs rm -fv"
+  echo " * Removing backups older than 5 days..."
+  as_user "cd \"$BACKUPPATH\" && find . -name \""$WORLDNAME"_backup*\" -type f -mtime +$BACKUPS_TO_KEEP | xargs rm -fv"
+  as_user "cd \"$BACKUPPATH\" && find . -name \""$SERVICE"_backup*\" -type f -mtime +$BACKUPS_TO_KEEP | xargs rm -fv"
   echo " * Removed old backups."
 }
 
 ## Rotates logfile to server.1 through server.7, designed to be called by daily cron job
 
 mc_logrotate() {
+  # Define a function to copy the old logfile to the new
+  mc_copylog() {
+    as_user "/bin/cp $logfile $MCPATH/$LOGNEW"
+  }
+
   # Server logfiles in chronological order
   LOGLIST="$(ls -r $MCPATH/server.log* | grep -v lck)"
   # How many logs to keep
@@ -315,8 +369,8 @@ mc_logrotate() {
     if [ -z "$LOGTMP" ]
     then
       LOGNEW="server.log.1"
-      as_user "/bin/cp $logfile $MCPATH/$LOGNEW"
-    # Otherwise, check if the file number is greater than $COUNT
+      mc_copylog
+    # Otherwise, check if the file number is under $COUNT
     elif [ "$LOGTMP" -gt "$COUNT" ]
     then
       # If so, delete it
@@ -325,7 +379,7 @@ mc_logrotate() {
       # Otherwise, add one to the number
       LOGBASE="$(basename $logfile | cut -d '.' -f 1-2)"
       LOGNEW="$LOGBASE.$(($LOGTMP+1))"
-      as_user "/bin/cp $logfile $MCPATH/$LOGNEW"
+      mc_copylog
     fi
   done
   # Blank the existing logfile to renew it
