@@ -96,9 +96,9 @@ It is possible to run multiple instances, for example a Creative server and a Su
 * Edit the Provides section on Line 6 to the same as the new filename
   # Provides: minecraft-creative
   # Provides: minecraft-survival
-* Create a separate SETTINGSFILE for each instance
-  SETTINGSFILE="/etc/sysconfig/minecraft-creative"
-  SETTINGSFILE="/etc/sysconfig/minecraft-creative"
+* Create a settings file for each instance in /etc/sysconfig/ using the same name as the script
+  /etc/sysconfig/minecraft-creative
+  /etc/sysconfig/minecraft-creative
 * Set an alias for each server in ~/.bashrc
   alias creative='/etc/init.d/minecraft-creative'
   alias survival='/etc/init.d/minecraft-survival'
