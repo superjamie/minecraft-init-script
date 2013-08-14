@@ -372,12 +372,11 @@ mc_backupexe() {
   echo " * [OK] Backed up executable."
 }
 
-## Removes any backups older than $BACKUPSTOKEEP days, designed to be called by daily cron job
+## Removes any backups older than $BACKUPS_TO_KEEP days, designed to be called by daily cron job
 
 mc_removeoldbackups() {
-  echo " * Removing backups older than 5 days..."
-  as_user "cd \"$BACKUPPATH\" && find . -name \""$WORLDNAME"_backup*\" -type f -mtime +$BACKUPS_TO_KEEP | xargs rm -fv"
-  as_user "cd \"$BACKUPPATH\" && find . -name \""$SERVICE"_backup*\" -type f -mtime +$BACKUPS_TO_KEEP | xargs rm -fv"
+  echo " * Removing backups older than $BACKUPS_TO_KEEP days..."
+  as_user "cd \"$BACKUPPATH\" && find . -name \"*backup*\" -type f -mtime +$BACKUPS_TO_KEEP | xargs rm -fv"
   echo " * Removed old backups."
 }
 
