@@ -99,6 +99,7 @@ INVOCATION="java -Xms1024M -Xmx1024M -Djava.net.preferIPv4Stack=true -XX:MaxPerm
 # You should be using HugePages if you give more than 4Gb on the Java invocation line
 # -XX:+UseLargePages
 
+SETTINGS_FILE_WORKING="1"
 ## End of settings file
 ## ---------------------------------------------------------
 COMMENT
@@ -322,14 +323,44 @@ mc_backupmap() {
   echo " * Backing up $SERVERNAME map named \"$WORLDNAME\"..."
   echo " * Syncing \"$MCPATH/$WORLDNAME\" to \"$BACKUPPATH/$WORLDNAME\""
   as_user "rsync --checksum --group --human-readable --copy-links --owner --perms --recursive --times --update --delete \"$MCPATH/$WORLDNAME\" \"$BACKUPPATH\""
+  # if the nether exists, back it up
+  WORLDNETHER="$WORLDNAME""_nether"
+  if [ -d "$MCPATH/$WORLDNETHER" ]
+    then
+    echo " * Syncing \"$MCPATH/$WORLDNETHER\" to \"$BACKUPPATH/$WORLDNETHER\""
+  as_user "rsync --checksum --group --human-readable --copy-links --owner --perms --recursive --times --update --delete \"$MCPATH/$WORLDNETHER\" \"$BACKUPPATH\""
+  else
+    echo " * \"$MCPATH/$WORLDNETHER\" doesn't exist, skipping."
+  fi
+  # if the end exists, back it up
+  WORLDTHEEND="$WORLDNAME""_the_end"
+  if [ -d "$MCPATH/$WORLDTHEEND" ]
+    then
+    echo " * Syncing \"$MCPATH/$WORLDTHEEND\" to \"$BACKUPPATH/$WORLDTHEEND\""
+    as_user "rsync --checksum --group --human-readable --copy-links --owner --perms --recursive --times --update --delete \"$MCPATH/$WORLDTHEEND\" \"$BACKUPPATH\""
+  else
+    echo " * \"$MCPATH/$WORLDTHEEND\" doesn't exist, skipping."
+  fi
   sleep 10
   echo " * Creating compressed backup..."
   NOW="$(date +%Y-%m-%d.%H-%M-%S)"
   # Create a compressed backup file and background it so we can get back to restarting the server
   # You can tell when the compression is done as it makes an md5sum file of the backup
   as_user "cd "$BACKUPPATH" && tar cfz \""$WORLDNAME"_backup_"$NOW".tar.gz\" \"$WORLDNAME\" && md5sum \""$WORLDNAME"_backup_"$NOW".tar.gz\" > \""$WORLDNAME"_backup_"$NOW".tar.gz.md5\" &"
-  # we can safely background the above command and get back to restarting the server
   echo " * [OK] Backed up map \"$WORLDNAME\"."
+  # if we backed up the nether, create a backup of that too
+  if [ -d "$BACKUPPATH/$WORLDNETHER" ]
+    then
+    as_user "cd "$BACKUPPATH" && tar cfz \""$WORLDNETHER"_backup_"$NOW".tar.gz\" \"$WORLDNETHER\" && md5sum \""$WORLDNETHER"_backup_"$NOW".tar.gz\" > \""$WORLDNETHER"_backup_"$NOW".tar.gz.md5\" &"
+    echo " * [OK] Backed up map \"$WORLDNETHER\"."
+  fi
+  # if we backed up the end, create a backup of that too
+  if [ -d "$BACKUPPATH/$WORLDTHEEND" ]
+    then
+    as_user "cd "$BACKUPPATH" && tar cfz \""$WORLDTHEEND"_backup_"$NOW".tar.gz\" \"$WORLDTHEEND\" && md5sum \""$WORLDTHEEND"_backup_"$NOW".tar.gz\" > \""$WORLDTHEEND"_backup_"$NOW".tar.gz.md5\" &"
+    echo " * [OK] Backed up map \"$WORLDTHEEND\"."
+  fi
+  # we can safely background the above commands and get back to restarting the server
 }
 
 ## Backs up executable by copying it to backup location
