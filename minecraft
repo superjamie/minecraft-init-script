@@ -30,10 +30,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Define the settings file
-
-SETTINGSFILE="/etc/sysconfig/minecraft"
-
 # Source the function library
 ## CentOS/Fedora
 if [ -f /etc/rc.d/init.d/functions ]
@@ -109,6 +105,9 @@ COMMENT
 ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 ## Apply the settings file
+
+# define the location of the settings file from the name of this script
+SETTINGSFILE="/etc/sysconfig/$(basename $0)"
 
 # check the file exists, and fail if not
 if [ ! -f "$SETTINGSFILE" ]
