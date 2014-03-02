@@ -440,8 +440,8 @@ mc_info() {
     echo " - Process ID         : $JAVAPID"
     echo " - Screen Session     : $SCRNAME"
     echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
-  # Check for HugePages support in kernel, display statistics if HugePages are in use, otherwise skip
-  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -a "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -gt 0 ]
+  # Check for HugePages support in kernel, display statistics if HugePages are available, otherwise skip
+  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -a "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" ]
   then
     HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
     HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
