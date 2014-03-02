@@ -139,6 +139,9 @@ It is possible to run multiple instances, for example a Creative server and a Su
   Proto Recv-Q Send-Q Local Address Foreign Address State
   tcp 0 0 0.0.0.0:25565 0.0.0.0:* LISTEN
   tcp 0 0 192.168.2.99:25565 192.168.2.69:55507 ESTABLISHED
+* Broadcast a message to the server with
+  minecraft say
+  (note that some punctuation like 'apostrophes' will not work)
 
 ## License ##
 

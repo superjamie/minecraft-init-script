@@ -472,6 +472,23 @@ mc_console() {
   fi
 }
 
+## Broadcasts a message
+
+mc_say() {
+  say_string="${@:1}"
+  if [[ -z "$say_string" ]]
+  then
+    echo " * You need to enter your message. Usage; \"minecraft say message\""
+  elif server_running
+  then
+    echo " * Broadcasting \"$say_string\""
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say $say_string\"\015'"
+  else
+    echo " * [ERROR] $SERVERNAME was not running!"
+    exit 1
+  fi
+}
+
 ## These are the parameters passed to the script
 
 case "$1" in
@@ -523,8 +540,11 @@ case "$1" in
  mc_backupmap
  mc_backupexe
  ;;
+  say)
+ mc_say "${@:2}"
+ ;;
   *)
- echo " * Usage: minecraft {start|stop|restart|backup (worldname)|update|status|info|console}"
+ echo " * Usage: minecraft {start|stop|restart|backup (worldname)|update|status|info|console|say}"
  exit 1
  ;;
 esac
