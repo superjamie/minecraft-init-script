@@ -52,8 +52,8 @@ As the root user:
   useradd -m bukkit
 * Save the script as /etc/init.d/minecraft and make it executable
   chmod +x /etc/init.d/minecraft
-* Copy between the <<COMMENT and COMMENT lines and place the copy at /etc/sysconfig/minecraft
-  If you need to edit settings, edit the /etc/sysconfig/minecraft file, not the initscript
+* Copy between the <<COMMENT and COMMENT lines and place the copy at /etc/default/minecraft
+  If you need to edit settings, edit the /etc/default/minecraft file, not the initscript
 * Allow the bukkit user to run the init script without needing root access
   Type `visudo` and add this line to the bottom:
   bukkit localhost=NOPASSWD:/etc/init.d/minecraft*
@@ -96,9 +96,9 @@ It is possible to run multiple instances, for example a Creative server and a Su
 * Edit the Provides section on Line 6 to the same as the new filename
   # Provides: minecraft-creative
   # Provides: minecraft-survival
-* Create a settings file for each instance in /etc/sysconfig/ using the same name as the script
-  /etc/sysconfig/minecraft-creative
-  /etc/sysconfig/minecraft-creative
+* Create a settings file for each instance in /etc/default/ using the same name as the script
+  /etc/default/minecraft-creative
+  /etc/default/minecraft-creative
 * Set an alias for each server in ~/.bashrc
   alias creative='/etc/init.d/minecraft-creative'
   alias survival='/etc/init.d/minecraft-survival'
