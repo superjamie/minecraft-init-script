@@ -182,17 +182,23 @@ mc_start() {
     echo " * $SERVERNAME was not already running. Starting..."
     echo " * Using map named \"$WORLDNAME\"..."
     as_user "cd \"$MCPATH\" && screen -c /dev/null -dmS $SCRNAME $INVOCATION"
-    sleep 10
     echo " * Checking $SERVERNAME is running..."
 
-    if server_running
-    then
-      echo " * [OK] $SERVERNAME is now running (pid $JAVAPID)."
-    else
-      echo " * [ERROR] Could not start $SERVERNAME."
-      exit 1
-    fi
-
+    # start a counter and check for 15 seconds if the server is running or not
+    COUNT=0
+    while [ $COUNT -lt 15 ]; do
+      if server_running
+      then
+        echo " * [OK] $SERVERNAME is now running (pid $JAVAPID)."
+	exit 0
+      else
+        let COUNT=COUNT+1
+        sleep 1
+      fi
+    done
+    # if we've reached here, the server hasn't started in 15 seconds
+    echo " * [ERROR] Could not start $SERVERNAME."
+    exit 1
   fi
 }
 
@@ -204,19 +210,40 @@ mc_stop() {
     echo " * $SERVERNAME is running (pid $JAVAPID). Commencing shutdown..."
     echo " * Notifying users of shutdown..."
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
-    echo " * Saving map named \"$WORLDNAME\" to disk..."
+    echo -n " * Saving map named \"$WORLDNAME\" to disk"
     as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"save-all\"\015'"
-    sleep 10
-    echo " * Stopping $SERVERNAME..."
-    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
-    sleep 10
-  else
-    echo " * [ERROR] $SERVERNAME was not running. Unable to stop!"
-    exit 1
-  fi
 
-  if server_running
-  then
+    # start a counter and check for 20 seconds for when the world has saved
+    COUNT=0
+    while [ $COUNT -lt 10 ]; do
+      echo -n "."
+      sleep 2
+      if [[ "$(tail -n 10 $MCPATH/logs/latest.log | grep 'Saved the world' | wc -l)" -gt 0 ]]; then
+        COUNT=99
+      fi
+      let COUNT=COUNT+1
+    done
+    echo ""
+
+    echo -n " * Stopping $SERVERNAME"
+    as_user "screen -p 0 -S $SCRNAME -X eval 'stuff \"stop\"\015'"
+
+    # start a counter and check for 15 seconds if the server is running or not
+    COUNT=0
+    while [ $COUNT -lt 15 ]; do
+      if server_running
+      then
+        echo -n "."
+        let COUNT=COUNT+1
+        sleep 1
+      else
+        echo ""
+        echo " * [OK] $SERVERNAME is shut down."
+        exit 0
+      fi
+    done
+    echo ""
+    # if we've reached here, the server hasn't stopped in 15 seconds
     echo " * [ERROR] $SERVERNAME is still running (pid $JAVAPID). Could not be shutdown!"
     exit 1
   else
