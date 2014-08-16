@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 2014-03-02 (YYYY-MM-DD)
+# version 2014-08-16 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides: minecraft
@@ -130,10 +130,10 @@ fi
 ## Get some more info from the settings file
 
 # Find the world name from the existing server file
-WORLDNAME="$(cat $MCPATH/server.properties | grep -E 'level-name' | sed -e s/.*level-name=//)"
+WORLDNAME="$(grep -E 'level-name' $MCPATH/server.properties | sed -e s/.*level-name=//)"
 
 # Find the port number from the existing server file
-SERVERPORT="$(cat $MCPATH/server.properties | grep -E 'server-port' | sed -e s/.*server-port=//)"
+SERVERPORT="$(grep -E 'server-port' $MCPATH/server.properties | sed -e s/.*server-port=//)"
 
 ## Runs all commands as the non-root user
 
@@ -439,18 +439,18 @@ mc_info() {
     echo " - World Name         : $WORLDNAME"
     echo " - Process ID         : $JAVAPID"
     echo " - Screen Session     : $SCRNAME"
-    echo " - Memory Usage       : $[$RSS/1024] Mb ($RSS kb)"
+    echo " - Memory Usage       : $((RSS/1024)) Mb ($RSS kb)"
   # Check for HugePages support in kernel, display statistics if HugePages are available, otherwise skip
-  if [ -n "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" -a "$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')" ]
+  if [ -n "$(grep HugePages_Total /proc/meminfo | awk '{print $2}')" -a "$(grep HugePages_Total /proc/meminfo | awk '{print $2}')" ]
   then
-    HP_SIZE="$(cat /proc/meminfo | grep Hugepagesize | awk '{print $2}')"
-    HP_TOTAL="$(cat /proc/meminfo | grep HugePages_Total | awk '{print $2}')"
-    HP_FREE="$(cat /proc/meminfo | grep HugePages_Free | awk '{print $2}')"
-    HP_RSVD="$(cat /proc/meminfo | grep HugePages_Rsvd | awk '{print $2}')"
-    HP_USED="$[$HP_TOTAL-$HP_FREE+$HP_RSVD]"
-    TOTALMEM="$[$RSS+$[$HP_USED*$HP_SIZE]]"
-    echo " - HugePage Usage     : $[$HP_USED*$[$HP_SIZE/1024]] Mb ($HP_USED HugePages)"
-    echo " - Total Memory Usage : $[$TOTALMEM/1024] Mb ($TOTALMEM kb)"
+    HP_SIZE="$(grep Hugepagesize /proc/meminfo | awk '{print $2}')"
+    HP_TOTAL="$(grep HugePages_Total /proc/meminfo | awk '{print $2}')"
+    HP_FREE="$(grep HugePages_Free /proc/meminfo | awk '{print $2}')"
+    HP_RSVD="$(grep HugePages_Rsvd /proc/meminfo | awk '{print $2}')"
+    HP_USED="$((HP_TOTAL-HP_FREE+HP_RSVD))"
+    TOTALMEM="$((RSS+(HP_USED*HP_SIZE)))"
+    echo " - HugePage Usage     : $((HP_USED*(HP_SIZE/1024))) Mb ($HP_USED HugePages)"
+    echo " - Total Memory Usage : $((TOTALMEM/1024)) Mb ($TOTALMEM kb)"
   fi
     echo " - Active Connections : "
     netstat --inet -tna | grep -E "Proto|$SERVERPORT"
