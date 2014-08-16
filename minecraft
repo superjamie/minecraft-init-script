@@ -218,8 +218,11 @@ mc_stop() {
     while [ $COUNT -lt 10 ]; do
       echo -n "."
       sleep 2
-      if [[ "$(tail -n 20 $MCPATH/logs/latest.log | grep -E 'Save complete|Saved the world' | wc -l)" -gt 0 ]]; then
-        COUNT=99
+      if [ -f "$MCPATH/logs/latest.log" ]
+      then
+        if [[ "$(tail -n 20 $MCPATH/logs/latest.log | grep -E 'Save complete|Saved the world' | wc -l)" -gt 0 ]]; then
+          COUNT=99
+        fi
       fi
       let COUNT=COUNT+1
     done
