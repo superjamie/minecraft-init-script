@@ -534,6 +534,12 @@ case "$1" in
   logrotate)
  mc_logrotate
  ;;
+  save-off)
+ mc_saveoff
+ ;;
+  save-on)
+ mc_saveon
+ ;;
 # Debug usage only
   justbackup) # don't use this while the server is running!!!
  mc_checkbackup
@@ -544,7 +550,7 @@ case "$1" in
  mc_say "${@:2}"
  ;;
   *)
- echo " * Usage: minecraft {start|stop|restart|backup (worldname)|update|status|info|console|say}"
+ echo " * Usage: minecraft {start|stop|restart|backup (worldname)|save-on|save-off|update|status|info|console|say}"
  exit 1
  ;;
 esac
