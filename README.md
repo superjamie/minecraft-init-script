@@ -4,6 +4,12 @@ by Jamie Bainbridge <<jamie.bainbridge@gmail.com>>
 
 This is an initscript to run a Minecraft or CraftBukkit server on CentOS, Fedora, and Ubuntu.
 
+### Note
+
+As of 2015, this script is no longer actively maintained. All the supported distros are moving to systemd, making the concept of an LSB initscript rather outdated. All issues I see are related to bugs in Ubuntu's implementation of Upstart, it works perfectly on CentOS. However I think you are much better learning to use containers like Docker to control a single process and its files. There are many instructions around the internet on how to do this.
+
+Thanks to all supporters over the years. You are welcome to fork this repo if you wish to continue development.
+
 ### Features
 
 *   Start, stop, restart CraftBukkit as a system service
